@@ -1,0 +1,10 @@
+[Unit]
+Description=webcam-ftp-upload
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/webcam-ftp-upload
+User=root
+
+[Install]
+WantedBy=multi-user.target

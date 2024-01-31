@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# FTP server details
+FTP_SERVER=""
+FTP_USER=""
+FTP_PASS=""
+
+# Directory to store captured images
+IMAGE_DIR="/var/lib/cam/"
+BACKUP_DIR="/var/lib/cam/backup/"
+# Function to create timelapse
+while true; do
+    # Capture an image using fswebcam
+    TIMESTAMP=$(date +"%Y%m%d%H%M%S")
+    IMAGE_NAME="view.jpg"
+    TIMELAPSE_NAME="timelapse.mp4"
+    ls /dev/video0 >/dev/null 2>&1 || echo $TIMESTAMP-novideo0 | logger
+    fswebcam --top-banner --title "webcam-ftp-upload" -r 640x480 --jpeg 85 -D 1 -S 20 "$IMAGE_DIR/$IMAGE_NAME" >/dev/null 2>&1
+    cp "$IMAGE_DIR/$IMAGE_NAME" "$BACKUP_DIR/image_$TIMESTAMP.jpg"
+    # Remove images older than 24 hours from the backup directory
+    find "$BACKUP_DIR" -type f -mtime +1 -exec rm {} \;
+    cd "$BACKUP_DIR"
+        # Create a timelapse video using ffmpeg
+    ffmpeg -framerate 1 -pattern_type glob -i '*.jpg' -c:v libx264 -r 30 -pix_fmt yuv420p $TIMELAPSE_NAME >/dev/null 2>&1
+
+    # Move the timelapse video to the local directory
+    mv timelapse.mp4 "$IMAGE_DIR"
+
+    # Upload the image to the FTP server using curl
+    curl --ftp-create-dirs -T "{$IMAGE_DIR/$IMAGE_NAME,$IMAGE_DIR/$TIMELAPSE.mp4}" -u "$FTP_USER:$FTP_PASS" ftp://$FTP_SERVER/$FTP_FOLDER/ >/dev/null 2>&1
+
+
+    # Wait for 30 minutes before capturing the next image
+    echo "$TIMESTAMP cam upload finished"
+    sleep 300
+done
+
